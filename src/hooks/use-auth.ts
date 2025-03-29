@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createParentProfile, getParentProfileByAuthId, type ParentProfile } from '@/services/parentService';
-import { useAuthContext } from '@/contexts/AuthContext';
+import { useAuth as useAuthBase } from '@/contexts/AuthContext';
 
 interface User {
   id: string;
@@ -8,11 +8,9 @@ interface User {
   parentProfile?: ParentProfile;
 }
 
-// Re-export the hook for backward compatibility
-export const useAuth = useAuthContext;
-
-export const useAuthNew = () => {
-  const authContext = useAuthContext();
+// Export the enhanced auth hook as a named export
+export const useAuth = () => {
+  const authContext = useAuthBase();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);

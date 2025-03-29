@@ -5,6 +5,14 @@ import type { Database } from './types';
 const SUPABASE_URL = "https://uvizyugzinpgphfjpnwz.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2aXp5dWd6aW5wZ3BoZmpwbnd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI2MTk5MTMsImV4cCI6MjA1ODE5NTkxM30.Q75OePHzn1wKzqY0ujSjg_P6x6l_1ZvwOehETB_F6dE";
 
+if (!SUPABASE_URL) {
+  throw new Error('Missing SUPABASE_URL');
+}
+
+if (!SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error('Missing SUPABASE_PUBLISHABLE_KEY');
+}
+
 console.log('Initializing Supabase client with:', {
   url: SUPABASE_URL,
   hasKey: !!SUPABASE_PUBLISHABLE_KEY
@@ -13,4 +21,12 @@ console.log('Initializing Supabase client with:', {
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
+// Create and export the supabase client
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+// Test the connection
+supabase.auth.getSession().then(() => {
+  console.log('Supabase client initialized successfully');
+}).catch(error => {
+  console.error('Error initializing Supabase client:', error);
+});

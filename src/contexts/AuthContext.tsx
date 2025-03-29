@@ -21,21 +21,18 @@ export type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuthContext = () => {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuthContext must be used within an AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
 
-// Alias for backward compatibility
-export const useAuth = useAuthContext;
-
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -75,12 +72,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
+    console.log('Starting auth initialization...');
+    setIsLoading(true); // Set loading to true when starting auth check
+    
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log("Auth state changed:", event);
+        console.log("Auth state changed:", event, "Session:", !!session);
         setSession(session);
         await handleUser(session?.user ?? null);
+        console.log("Auth state change processed, setting isLoading to false");
+        setIsLoading(false); // Set loading to false after auth state change
         
         // If the user just signed in, redirect to dashboard
         if (event === 'SIGNED_IN' && window.location.pathname === '/login') {
@@ -91,20 +93,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // THEN check for existing session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log("Initial session check:", !!session);
       setSession(session);
       await handleUser(session?.user ?? null);
-      setIsLoading(false);
+      console.log("Initial session check complete, setting isLoading to false");
+      setIsLoading(false); // Set loading to false after session check
+    }).catch(error => {
+      console.error("Error checking session:", error);
+      console.log("Session check failed, setting isLoading to false");
+      setIsLoading(false); // Set loading to false even if there's an error
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log("Cleaning up auth subscription");
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
+    if (isLoading) {
+      console.log("Sign in attempted while loading, preventing...");
+      return;
+    }
+    
     try {
+      console.log("Starting sign in process...");
       setIsLoading(true);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
+        console.error("Sign in error from Supabase:", error);
         toast({
           title: "Sign in failed",
           description: error.message,
@@ -113,6 +131,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return Promise.reject(error);
       }
       
+      console.log("Sign in successful");
       toast({
         title: "Welcome back!",
         description: "You've successfully signed in.",
@@ -126,11 +145,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
       return Promise.reject(error);
     } finally {
+      console.log("Sign in process complete, setting isLoading to false");
       setIsLoading(false);
     }
   };
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
+    if (isLoading) return; // Prevent multiple simultaneous attempts
+    
     try {
       setIsLoading(true);
       const { error } = await supabase.auth.signUp({ 
@@ -204,6 +226,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signInWithGoogle = async () => {
+    if (isLoading) return; // Prevent multiple simultaneous attempts
+    
     try {
       setIsLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
@@ -222,8 +246,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return Promise.reject(error);
       }
       
-      // Success toast is not needed here as we'll redirect the user
-      // and they will see the welcome toast after successful redirect
+      // Success toast is not needed here as we'll redirect to Google
     } catch (error) {
       console.error("Google sign in error:", error);
       toast({
